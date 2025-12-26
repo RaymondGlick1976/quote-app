@@ -33,8 +33,8 @@ exports.handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Customer email not found' }) };
     }
 
-    // Generate portal link
-    const siteUrl = process.env.SITE_URL || 'https://hcdbooks.netlify.app';
+    // Generate portal link (remove trailing slash from SITE_URL if present)
+    const siteUrl = (process.env.SITE_URL || 'https://hcdbooks.netlify.app').replace(/\/+$/, '');
     const portalLink = `${siteUrl}/portal/login.html`;
 
     // Format total for email

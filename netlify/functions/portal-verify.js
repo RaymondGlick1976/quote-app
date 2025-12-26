@@ -9,14 +9,20 @@ exports.handler = async (event) => {
   const corsResponse = handleCors(event);
   if (corsResponse) return corsResponse;
   
-  // Get token from query string
-  const token = event.queryStringParameters?.token;
+  // Get token from query string OR body
+  let token = event.queryStringParameters?.token;
+  
+  if (!token && event.body) {
+    try {
+      const body = JSON.parse(event.body);
+      token = body.token;
+    } catch (e) {
+      // ignore parse error
+    }
+  }
   
   if (!token) {
-    return {
-      statusCode: 302,
-      headers: { Location: '/portal/login.html?error=missing_token' },
-    };
+    return error('Missing token', 400);
   }
   
   const supabase = getSupabase();
@@ -32,18 +38,12 @@ exports.handler = async (event) => {
       .single();
     
     if (tokenError || !authToken) {
-      return {
-        statusCode: 302,
-        headers: { Location: '/portal/login.html?error=invalid_token' },
-      };
+      return error('Invalid or expired token', 400);
     }
     
     // Check expiration
     if (new Date(authToken.expires_at) < new Date()) {
-      return {
-        statusCode: 302,
-        headers: { Location: '/portal/login.html?error=expired_token' },
-      };
+      return error('Login link has expired', 400);
     }
     
     // Mark magic link as used
@@ -83,20 +83,18 @@ exports.handler = async (event) => {
         ip_address: event.headers['x-forwarded-for'] || event.headers['client-ip'],
       });
     
-    // Redirect to dashboard with session cookie
+    // Return success with session cookie
     return {
-      statusCode: 302,
+      statusCode: 200,
       headers: {
-        Location: '/portal/dashboard.html',
+        'Content-Type': 'application/json',
         'Set-Cookie': setSessionCookie(sessionToken),
       },
+      body: JSON.stringify({ success: true })
     };
     
   } catch (err) {
     console.error('Verify error:', err);
-    return {
-      statusCode: 302,
-      headers: { Location: '/portal/login.html?error=invalid_token' },
-    };
+    return error('Invalid or expired token', 400);
   }
 };

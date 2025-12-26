@@ -58,7 +58,7 @@ exports.handler = async (event) => {
     }
     
     // Send email
-    const siteUrl = process.env.SITE_URL || 'https://homesteadcabinetdesign.com';
+    const siteUrl = (process.env.SITE_URL || 'https://homesteadcabinetdesign.com').replace(/\/+$/, '');
     const loginUrl = `${siteUrl}/portal/verify.html?token=${token}`;
     
     const resend = new Resend(process.env.RESEND_API_KEY);

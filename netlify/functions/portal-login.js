@@ -58,13 +58,13 @@ exports.handler = async (event) => {
     }
     
     // Send email
-    const siteUrl = process.env.SITE_URL || 'https://customkitchensma.com';
+    const siteUrl = process.env.SITE_URL || 'https://homesteadcabinetdesign.com';
     const loginUrl = `${siteUrl}/portal/verify.html?token=${token}`;
     
     const resend = new Resend(process.env.RESEND_API_KEY);
     
     await resend.emails.send({
-      from: 'Homestead Cabinet Design <noreply@customkitchensma.com>',
+      from: 'Homestead Cabinet Design <noreply@homesteadcabinetdesign.com>',
       to: customer.email,
       subject: 'Your Login Link - Homestead Cabinet Design',
       html: `

@@ -1,5 +1,5 @@
 // =============================================
-// PORTAL INVOICES - Get all invoices and payments
+// PORTAL PAYMENTS - Get customer's payment history
 // =============================================
 
 const { getSupabase, success, error, handleCors, validateSession } = require('./utils');
@@ -16,16 +16,8 @@ exports.handler = async (event) => {
   const supabase = getSupabase();
   
   try {
-    // Get invoices
-    const { data: invoices } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('customer_id', customer.id)
-      .neq('status', 'draft')
-      .order('created_at', { ascending: false });
-    
-    // Get payments with invoice info
-    const { data: payments } = await supabase
+    // Get all payments for this customer
+    const { data: payments, error: paymentsError } = await supabase
       .from('payments')
       .select(`
         *,
@@ -35,13 +27,12 @@ exports.handler = async (event) => {
       .eq('status', 'succeeded')
       .order('payment_date', { ascending: false });
     
-    return success({
-      invoices: invoices || [],
-      payments: payments || [],
-    });
+    if (paymentsError) throw paymentsError;
+    
+    return success({ payments: payments || [] });
     
   } catch (err) {
-    console.error('Invoices fetch error:', err);
-    return error('Failed to load invoices', 500);
+    console.error('Payments fetch error:', err);
+    return error('Failed to load payments', 500);
   }
 };

@@ -210,6 +210,7 @@ CREATE TABLE payments (
   amount DECIMAL(10, 2) NOT NULL,
   payment_type VARCHAR(50) DEFAULT 'card' CHECK (payment_type IN ('card', 'cash', 'check', 'other', 'deposit', 'progress', 'final')),
   payment_method VARCHAR(100),
+  reference_number VARCHAR(100),
   stripe_payment_intent_id VARCHAR(255),
   stripe_charge_id VARCHAR(255),
   status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'succeeded', 'failed', 'refunded')),

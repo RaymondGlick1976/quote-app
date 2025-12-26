@@ -715,29 +715,45 @@
       let subtotal = 0;
       let subtotalLow = 0;
       let subtotalHigh = 0;
+      let taxableSubtotal = 0;
+      let taxableSubtotalLow = 0;
+      let taxableSubtotalHigh = 0;
       let hasRange = false;
       
       lineItems.forEach(item => {
         const isOptional = item.is_optional === true;
         const isSelected = item.is_selected === true;
+        const isTaxable = item.is_taxable === true;
+        
         if (!isOptional || isSelected) {
           if (item.is_range_pricing) {
             hasRange = true;
-            subtotalLow += parseFloat(item.line_total_low || 0);
-            subtotalHigh += parseFloat(item.line_total_high || 0);
+            const lowTotal = parseFloat(item.line_total_low || 0);
+            const highTotal = parseFloat(item.line_total_high || 0);
+            subtotalLow += lowTotal;
+            subtotalHigh += highTotal;
+            if (isTaxable) {
+              taxableSubtotalLow += lowTotal;
+              taxableSubtotalHigh += highTotal;
+            }
           } else {
             const total = parseFloat(item.line_total || 0);
             subtotal += total;
             subtotalLow += total;
             subtotalHigh += total;
+            if (isTaxable) {
+              taxableSubtotal += total;
+              taxableSubtotalLow += total;
+              taxableSubtotalHigh += total;
+            }
           }
         }
       });
       
       const taxRate = parseFloat(quote.tax_rate || 0);
-      const taxAmount = subtotal * taxRate;
-      const taxAmountLow = subtotalLow * taxRate;
-      const taxAmountHigh = subtotalHigh * taxRate;
+      const taxAmount = taxableSubtotal * taxRate;
+      const taxAmountLow = taxableSubtotalLow * taxRate;
+      const taxAmountHigh = taxableSubtotalHigh * taxRate;
       
       const grandTotal = subtotal + taxAmount;
       const grandTotalLow = subtotalLow + taxAmountLow;
@@ -815,11 +831,11 @@
     // Accept quote button
     $('#accept-btn').addEventListener('click', async () => {
       const btn = $('#accept-btn');
-      const paymentAmount = parseFloat($('#payment-amount').value);
-      const minDeposit = window.minDepositAmount || 0;
+      const paymentAmount = Math.round(parseFloat($('#payment-amount').value) * 100) / 100;
+      const minDeposit = Math.round((window.minDepositAmount || 0) * 100) / 100;
       
-      // Validate payment amount
-      if (!paymentAmount || paymentAmount < minDeposit) {
+      // Validate payment amount (use small epsilon for floating point comparison)
+      if (!paymentAmount || paymentAmount < minDeposit - 0.01) {
         showToast(`Minimum payment is ${formatCurrency(minDeposit)}`, 'error');
         return;
       }

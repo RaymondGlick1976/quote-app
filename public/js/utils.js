@@ -163,6 +163,9 @@ function $$(selector, parent = document) {
 function createElement(tag, attributes = {}, children = []) {
   const element = document.createElement(tag);
   
+  // Boolean attributes that should be set as properties, not attributes
+  const booleanAttrs = ['checked', 'disabled', 'selected', 'readonly', 'required', 'hidden'];
+  
   Object.entries(attributes).forEach(([key, value]) => {
     if (key === 'className') {
       element.className = value;
@@ -176,6 +179,9 @@ function createElement(tag, attributes = {}, children = []) {
       Object.entries(value).forEach(([dataKey, dataValue]) => {
         element.dataset[dataKey] = dataValue;
       });
+    } else if (booleanAttrs.includes(key)) {
+      // Handle boolean attributes - set property directly
+      element[key] = !!value;
     } else {
       element.setAttribute(key, value);
     }

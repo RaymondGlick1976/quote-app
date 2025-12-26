@@ -129,6 +129,7 @@
           <td class="table-actions">
             <button class="btn btn-ghost btn-sm" onclick="viewInvoice('${invoice.id}')">View</button>
             ${invoice.status === 'draft' ? `<button class="btn btn-ghost btn-sm" onclick="sendInvoice('${invoice.id}')">Send</button>` : ''}
+            ${invoice.amount_due > 0 ? `<button class="btn btn-ghost btn-sm" onclick="recordPayment('${invoice.id}')">Record Payment</button>` : ''}
           </td>
         `;
         tbody.appendChild(row);
@@ -195,6 +196,119 @@
         showToast('Failed to send: ' + err.message, 'error');
       }
     };
+    
+    window.recordPayment = (id) => {
+      const invoice = invoices.find(i => i.id === id);
+      if (!invoice) return;
+      
+      const content = createElement('form', { id: 'payment-form' });
+      content.innerHTML = `
+        <div class="form-group">
+          <label class="form-label">Payment Amount *</label>
+          <input type="number" name="amount" class="form-input" value="${invoice.amount_due}" step="0.01" min="0.01" max="${invoice.amount_due}" required>
+          <div class="text-sm text-muted mt-xs">Amount due: ${formatCurrency(invoice.amount_due)}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Method *</label>
+          <select name="payment_method" class="form-select" required>
+            <option value="cash">Cash</option>
+            <option value="check">Check</option>
+            <option value="card">Credit/Debit Card</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reference # (optional)</label>
+          <input type="text" name="reference" class="form-input" placeholder="Check number, transaction ID, etc.">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Date</label>
+          <input type="date" name="payment_date" class="form-input" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes (optional)</label>
+          <textarea name="notes" class="form-textarea" rows="2"></textarea>
+        </div>
+      `;
+      
+      const footer = createElement('div', { className: 'btn-group' });
+      const cancelBtn = createElement('button', {
+        type: 'button',
+        className: 'btn btn-secondary',
+        textContent: 'Cancel'
+      });
+      const saveBtn = createElement('button', {
+        type: 'submit',
+        className: 'btn btn-primary',
+        textContent: 'Record Payment'
+      });
+      footer.appendChild(cancelBtn);
+      footer.appendChild(saveBtn);
+      
+      const modal = createModal(`Record Payment - ${invoice.invoice_number}`, content, footer);
+      
+      cancelBtn.addEventListener('click', () => closeModal(modal));
+      
+      content.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (content.checkValidity()) {
+          const formData = new FormData(content);
+          await savePayment(id, formData);
+          closeModal(modal);
+        } else {
+          content.reportValidity();
+        }
+      });
+    };
+    
+    async function savePayment(invoiceId, formData) {
+      try {
+        const supabase = await app.waitForSupabase();
+        const invoice = invoices.find(i => i.id === invoiceId);
+        
+        const amount = parseFloat(formData.get('amount'));
+        
+        // Insert payment record
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            invoice_id: invoiceId,
+            customer_id: invoice.customer_id,
+            amount: amount,
+            payment_method: formData.get('payment_method'),
+            reference_number: formData.get('reference') || null,
+            payment_date: formData.get('payment_date'),
+            notes: formData.get('notes') || null,
+            status: 'succeeded'
+          });
+        
+        if (paymentError) throw paymentError;
+        
+        // Update invoice amounts
+        const newAmountPaid = parseFloat(invoice.amount_paid || 0) + amount;
+        const newAmountDue = parseFloat(invoice.total) - newAmountPaid;
+        const newStatus = newAmountDue <= 0 ? 'paid' : 'partial';
+        
+        const { error: invoiceError } = await supabase
+          .from('invoices')
+          .update({
+            amount_paid: newAmountPaid,
+            amount_due: Math.max(0, newAmountDue),
+            status: newStatus
+          })
+          .eq('id', invoiceId);
+        
+        if (invoiceError) throw invoiceError;
+        
+        showToast('Payment recorded successfully!', 'success');
+        loadInvoices();
+      } catch (err) {
+        console.error('Payment error:', err);
+        showToast('Failed to record payment: ' + err.message, 'error');
+      }
+    }
     
     // Initialize
     loadInvoices();

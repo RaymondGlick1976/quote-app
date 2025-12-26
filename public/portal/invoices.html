@@ -255,17 +255,51 @@
       const container = $('#payments-list');
       clearElement(container);
       
+      if (payments.length === 0) {
+        container.appendChild(createElement('p', { 
+          className: 'text-muted text-center p-lg',
+          textContent: 'No payments recorded yet.'
+        }));
+        return;
+      }
+      
       payments.forEach(payment => {
         const row = createElement('div', {
           className: 'flex items-center justify-between p-md',
           style: 'border-bottom: 1px solid var(--color-border-light);'
         });
         
-        row.appendChild(createElement('div', {}, [
-          createElement('div', { className: 'font-bold', textContent: formatCurrency(payment.amount) }),
-          createElement('div', { className: 'text-sm text-muted', textContent: formatDate(payment.payment_date) })
-        ]));
+        // Left side - payment details
+        const leftSide = createElement('div');
+        leftSide.appendChild(createElement('div', { 
+          className: 'font-bold', 
+          textContent: formatCurrency(payment.amount) 
+        }));
+        leftSide.appendChild(createElement('div', { 
+          className: 'text-sm text-muted', 
+          textContent: formatDate(payment.payment_date) 
+        }));
         
+        // Payment method info
+        const methodText = formatPaymentMethod(payment.payment_method || payment.payment_type);
+        const methodDiv = createElement('div', { className: 'text-sm text-muted' });
+        methodDiv.textContent = methodText;
+        if (payment.reference_number) {
+          methodDiv.textContent += ` • Ref: ${payment.reference_number}`;
+        }
+        leftSide.appendChild(methodDiv);
+        
+        // Invoice link if available
+        if (payment.invoices) {
+          leftSide.appendChild(createElement('div', {
+            className: 'text-sm text-muted',
+            textContent: `Invoice: ${payment.invoices.invoice_number}`
+          }));
+        }
+        
+        row.appendChild(leftSide);
+        
+        // Right side - status badge
         row.appendChild(createElement('span', {
           className: `badge badge-${payment.status === 'succeeded' ? 'paid' : payment.status}`,
           textContent: payment.status === 'succeeded' ? 'Completed' : payment.status
@@ -273,6 +307,20 @@
         
         container.appendChild(row);
       });
+    }
+    
+    function formatPaymentMethod(method) {
+      const methods = {
+        card: 'Credit/Debit Card',
+        cash: 'Cash',
+        check: 'Check',
+        bank_transfer: 'Bank Transfer',
+        other: 'Other',
+        deposit: 'Deposit',
+        progress: 'Progress Payment',
+        final: 'Final Payment'
+      };
+      return methods[method] || method || 'Card';
     }
     
     function formatInvoiceStatus(status) {

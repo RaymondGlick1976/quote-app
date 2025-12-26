@@ -73,13 +73,18 @@ exports.handler = async (event) => {
       .eq('quote_id', quote_id);
     
     let subtotal = 0;
+    let taxableSubtotal = 0;
     lineItems.forEach(item => {
       if (!item.is_optional || item.is_selected) {
-        subtotal += parseFloat(item.line_total || 0);
+        const lineTotal = parseFloat(item.line_total || 0);
+        subtotal += lineTotal;
+        if (item.is_taxable) {
+          taxableSubtotal += lineTotal;
+        }
       }
     });
     
-    const taxAmount = subtotal * parseFloat(quote.tax_rate || 0);
+    const taxAmount = taxableSubtotal * parseFloat(quote.tax_rate || 0);
     const total = subtotal + taxAmount;
     
     // Calculate minimum deposit
@@ -90,12 +95,15 @@ exports.handler = async (event) => {
       minDeposit = parseFloat(quote.deposit_value);
     }
     
-    // Use custom payment amount if provided, otherwise use minimum deposit
-    let paymentAmount = payment_amount ? parseFloat(payment_amount) : minDeposit;
+    // Round to avoid floating point issues
+    minDeposit = Math.round(minDeposit * 100) / 100;
     
-    // Validate payment amount is at least the minimum deposit
-    if (paymentAmount < minDeposit) {
-      return error(`Payment amount must be at least ${minDeposit.toFixed(2)}`);
+    // Use custom payment amount if provided, otherwise use minimum deposit
+    let paymentAmount = payment_amount ? Math.round(parseFloat(payment_amount) * 100) / 100 : minDeposit;
+    
+    // Validate payment amount is at least the minimum deposit (with small tolerance)
+    if (paymentAmount < minDeposit - 0.01) {
+      return error(`Payment amount must be at least $${minDeposit.toFixed(2)}`);
     }
     
     // Ensure minimum $0.50 for Stripe

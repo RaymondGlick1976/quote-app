@@ -745,29 +745,44 @@
         return;
       }
       
-      // Calculate totals
+      // Calculate totals - separate taxable and non-taxable
       let subtotal = 0;
       let subtotalLow = 0;
       let subtotalHigh = 0;
+      let taxableSubtotal = 0;
+      let taxableSubtotalLow = 0;
+      let taxableSubtotalHigh = 0;
       
       lineItems.forEach(item => {
         if (!item.isOptional) {
           const qty = item.quantity || 1;
           if (item.isRangePricing) {
-            subtotalLow += (item.priceRangeLow || 0) * qty;
-            subtotalHigh += (item.priceRangeHigh || 0) * qty;
+            const lowTotal = (item.priceRangeLow || 0) * qty;
+            const highTotal = (item.priceRangeHigh || 0) * qty;
+            subtotalLow += lowTotal;
+            subtotalHigh += highTotal;
+            if (item.isTaxable) {
+              taxableSubtotalLow += lowTotal;
+              taxableSubtotalHigh += highTotal;
+            }
           } else {
             const lineTotal = (item.unitPrice || 0) * qty;
             subtotal += lineTotal;
             subtotalLow += lineTotal;
             subtotalHigh += lineTotal;
+            if (item.isTaxable) {
+              taxableSubtotal += lineTotal;
+              taxableSubtotalLow += lineTotal;
+              taxableSubtotalHigh += lineTotal;
+            }
           }
         }
       });
       
-      const tax = subtotal * TAX_RATE;
-      const taxLow = subtotalLow * TAX_RATE;
-      const taxHigh = subtotalHigh * TAX_RATE;
+      // Only tax the taxable portion
+      const tax = taxableSubtotal * TAX_RATE;
+      const taxLow = taxableSubtotalLow * TAX_RATE;
+      const taxHigh = taxableSubtotalHigh * TAX_RATE;
       
       const total = subtotal + tax;
       const totalLow = subtotalLow + taxLow;
@@ -963,22 +978,40 @@
       try {
         const supabase = await app.waitForSupabase();
         
-        // Calculate totals
+        // Calculate totals - separate taxable and non-taxable
         let subtotal = 0, subtotalLow = 0, subtotalHigh = 0;
+        let taxableSubtotal = 0, taxableSubtotalLow = 0, taxableSubtotalHigh = 0;
+        
         lineItems.forEach(item => {
           if (!item.isOptional) {
             const qty = item.quantity || 1;
             if (item.isRangePricing) {
-              subtotalLow += (item.priceRangeLow || 0) * qty;
-              subtotalHigh += (item.priceRangeHigh || 0) * qty;
+              const lowTotal = (item.priceRangeLow || 0) * qty;
+              const highTotal = (item.priceRangeHigh || 0) * qty;
+              subtotalLow += lowTotal;
+              subtotalHigh += highTotal;
+              if (item.isTaxable) {
+                taxableSubtotalLow += lowTotal;
+                taxableSubtotalHigh += highTotal;
+              }
             } else {
               const lineTotal = (item.unitPrice || 0) * qty;
               subtotal += lineTotal;
               subtotalLow += lineTotal;
               subtotalHigh += lineTotal;
+              if (item.isTaxable) {
+                taxableSubtotal += lineTotal;
+                taxableSubtotalLow += lineTotal;
+                taxableSubtotalHigh += lineTotal;
+              }
             }
           }
         });
+        
+        // Only tax the taxable portion
+        const taxAmount = taxableSubtotal * TAX_RATE;
+        const taxAmountLow = taxableSubtotalLow * TAX_RATE;
+        const taxAmountHigh = taxableSubtotalHigh * TAX_RATE;
         
         const validDays = parseInt($('#valid-days').value) || 30;
         const expiresAt = new Date(Date.now() + validDays * 24 * 60 * 60 * 1000);
@@ -1000,10 +1033,10 @@
           subtotal,
           subtotal_low: subtotalLow,
           subtotal_high: subtotalHigh,
-          tax_amount: subtotal * TAX_RATE,
-          total: subtotal + (subtotal * TAX_RATE),
-          total_low: subtotalLow + (subtotalLow * TAX_RATE),
-          total_high: subtotalHigh + (subtotalHigh * TAX_RATE)
+          tax_amount: taxAmount,
+          total: subtotal + taxAmount,
+          total_low: subtotalLow + taxAmountLow,
+          total_high: subtotalHigh + taxAmountHigh
         };
         
         if (status === 'sent') {

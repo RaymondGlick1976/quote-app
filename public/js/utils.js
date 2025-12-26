@@ -7,7 +7,7 @@ const CONFIG = {
   SUPABASE_URL: 'https://byozvlgtbwiohyrfvxii.supabase.co',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5b3p2bGd0Yndpb2h5cmZ2eGlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3MDQ0MTYsImV4cCI6MjA4MjI4MDQxNn0.uFCgHLSCbIxRP5YBm7OrJT_jPdygOF8AVIWga8JmNkI',
   STRIPE_PUBLISHABLE_KEY: 'pk_test_51SiPliCxhFCWvROVjZb23sYMMnwfpPJgIeZjfSKQ5NdD5RdW1AvHqQHJwQh4kdd9VY05PoQ3js257QGfn4saa43K00Jr6rsem7',
-  SITE_URL: window.location.origin
+  SITE_URL: https://hcdbooks.netlify.app/
 };
 
 // =============================================

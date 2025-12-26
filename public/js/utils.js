@@ -306,24 +306,25 @@ function confirm(message, options = {}) {
   return new Promise((resolve) => {
     const { title = 'Confirm', confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = options;
     
-    const footer = createElement('div', { className: 'btn-group' }, [
-      createElement('button', { 
-        className: 'btn btn-secondary',
-        textContent: cancelText,
-        onClick: () => { closeModal(modal); resolve(false); }
-      }),
-      createElement('button', { 
-        className: `btn ${danger ? 'btn-danger' : 'btn-primary'}`,
-        textContent: confirmText,
-        onClick: () => { closeModal(modal); resolve(true); }
-      })
-    ]);
+    const cancelBtn = createElement('button', { 
+      className: 'btn btn-secondary',
+      textContent: cancelText
+    });
+    const confirmBtn = createElement('button', { 
+      className: `btn ${danger ? 'btn-danger' : 'btn-primary'}`,
+      textContent: confirmText
+    });
+    
+    const footer = createElement('div', { className: 'btn-group' }, [cancelBtn, confirmBtn]);
     
     const modal = createModal({
       title,
       content: createElement('p', { textContent: message }),
       footer
     });
+    
+    cancelBtn.addEventListener('click', () => { closeModal(modal); resolve(false); });
+    confirmBtn.addEventListener('click', () => { closeModal(modal); resolve(true); });
   });
 }
 
@@ -595,6 +596,7 @@ window.clearElement = clearElement;
 window.showToast = showToast;
 window.createModal = createModal;
 window.closeModal = closeModal;
+window.confirm = confirm;
 window.formatCurrency = formatCurrency;
 window.formatDate = formatDate;
 window.formatPhone = formatPhone;

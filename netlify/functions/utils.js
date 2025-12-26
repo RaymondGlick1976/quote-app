@@ -96,12 +96,12 @@ async function validateSession(event) {
 // Set session cookie
 function setSessionCookie(token, maxAge = 30 * 24 * 60 * 60) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  return `portal_session=${token}; Path=/portal; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
+  return `portal_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
 // Clear session cookie
 function clearSessionCookie() {
-  return 'portal_session=; Path=/portal; HttpOnly; SameSite=Strict; Max-Age=0';
+  return 'portal_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
 }
 
 // Generate random token

@@ -75,12 +75,15 @@
         const response = await fetch('/api/portal-verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
+          body: JSON.stringify({ token }),
+          credentials: 'include'
         });
         
         const data = await response.json();
         
         if (response.ok && data.success) {
+          // Store session indicator in localStorage for client-side checks
+          localStorage.setItem('portal_logged_in', 'true');
           // Redirect to dashboard
           window.location.href = '/portal/dashboard.html';
         } else {

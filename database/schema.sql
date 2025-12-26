@@ -304,7 +304,7 @@ CREATE TABLE settings (
 
 -- Insert default settings
 INSERT INTO settings (key, value) VALUES
-  ('company', '{"name": "Homestead Cabinet Design", "email": "info@customkitchensma.com", "phone": "", "address": "", "city": "", "state": "MA", "zip": ""}'),
+  ('company', '{"name": "Homestead Cabinet Design", "email": "raymond@homesteadcabinetdesign.com", "phone": "", "address": "", "city": "", "state": "MA", "zip": ""}'),
   ('quote_defaults', '{"valid_days": 30, "deposit_type": "percentage", "deposit_value": 50, "tax_rate": 0.0625}'),
   ('invoice_defaults', '{"due_days": 30, "tax_rate": 0.0625}'),
   ('next_quote_number', '{"value": 1001}'),

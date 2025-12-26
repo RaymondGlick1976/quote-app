@@ -202,7 +202,7 @@ async function sendPaymentConfirmation(supabase, customerId, amount, invoice) {
   
   // Email to customer
   await resend.emails.send({
-    from: 'Homestead Cabinet Design <noreply@customkitchensma.com>',
+    from: 'Homestead Cabinet Design <noreply@homesteadcabinetdesign.com>',
     to: customer.email,
     subject: 'Payment Confirmation - Homestead Cabinet Design',
     html: `
@@ -225,7 +225,7 @@ async function sendPaymentConfirmation(supabase, customerId, amount, invoice) {
   // Email to admin
   if (process.env.ADMIN_EMAIL) {
     await resend.emails.send({
-      from: 'Homestead Cabinet Design <noreply@customkitchensma.com>',
+      from: 'Homestead Cabinet Design <noreply@homesteadcabinetdesign.com>',
       to: process.env.ADMIN_EMAIL,
       subject: `Payment Received: $${amount.toFixed(2)} from ${customer.name}`,
       html: `

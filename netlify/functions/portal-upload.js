@@ -89,7 +89,7 @@ exports.handler = async (event) => {
       try {
         const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
-          from: 'Homestead Cabinet Design <noreply@customkitchensma.com>',
+          from: 'Homestead Cabinet Design <noreply@homesteadcabinetdesign.com>',
           to: process.env.ADMIN_EMAIL,
           subject: `New Photo Upload from ${customer.name}`,
           html: `

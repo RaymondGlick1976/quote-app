@@ -111,7 +111,7 @@ const CONFIG = {
   SUPABASE_URL: 'https://your-project.supabase.co',
   SUPABASE_ANON_KEY: 'your-anon-key',
   STRIPE_PUBLISHABLE_KEY: 'pk_live_...',
-  SITE_URL: 'https://customkitchensma.com'
+  SITE_URL: 'https://homesteadcabinetdesign.com'
 };
 ```
 
@@ -130,7 +130,7 @@ STRIPE_PUBLISHABLE_KEY=pk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 RESEND_API_KEY=re_...
 ADMIN_EMAIL=your@email.com
-SITE_URL=https://customkitchensma.com
+SITE_URL=https://homesteadcabinetdesign.com
 ```
 
 4. Deploy!

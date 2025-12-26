@@ -94,7 +94,7 @@ exports.handler = async (event) => {
     depositAmount = Math.max(depositAmount, 0.50);
     
     // Create Stripe Checkout session
-    const siteUrl = process.env.SITE_URL || 'https://customkitchensma.com';
+    const siteUrl = process.env.SITE_URL || 'https://homesteadcabinetdesign.com';
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

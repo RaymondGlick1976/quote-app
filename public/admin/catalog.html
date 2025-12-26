@@ -276,9 +276,17 @@
           onClick: () => closeModal(modal)
         }),
         createElement('button', {
-          type: 'submit',
+          type: 'button',
           className: 'btn btn-primary',
-          textContent: isEdit ? 'Save Changes' : 'Add Item'
+          textContent: isEdit ? 'Save Changes' : 'Add Item',
+          onClick: async () => {
+            if (content.checkValidity()) {
+              await saveItem(new FormData(content), item?.id);
+              closeModal(modal);
+            } else {
+              content.reportValidity();
+            }
+          }
         })
       ]);
       
@@ -287,12 +295,6 @@
         content,
         footer,
         size: 'lg'
-      });
-      
-      content.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await saveItem(new FormData(content), item?.id);
-        closeModal(modal);
       });
     }
     

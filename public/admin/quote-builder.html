@@ -878,9 +878,45 @@
           onClick: () => closeModal(modal)
         }),
         createElement('button', {
-          type: 'submit',
+          type: 'button',
           className: 'btn btn-primary',
-          textContent: 'Add Customer'
+          textContent: 'Add Customer',
+          onClick: async () => {
+            if (!content.checkValidity()) {
+              content.reportValidity();
+              return;
+            }
+            const formData = new FormData(content);
+            
+            try {
+              const supabase = await app.waitForSupabase();
+              const { data: customer, error } = await supabase
+                .from('customers')
+                .insert({
+                  name: formData.get('name'),
+                  email: formData.get('email').toLowerCase(),
+                  phone: formData.get('phone'),
+                  address: formData.get('address')
+                })
+                .select()
+                .single();
+              
+              if (error) throw error;
+              
+              // Add to dropdown and select
+              customers.push(customer);
+              const option = document.createElement('option');
+              option.value = customer.id;
+              option.textContent = `${customer.name} (${customer.email})`;
+              $('#customer-select').appendChild(option);
+              $('#customer-select').value = customer.id;
+              
+              closeModal(modal);
+              showToast('Customer added', 'success');
+            } catch (err) {
+              showToast('Failed to add customer: ' + err.message, 'error');
+            }
+          }
         })
       ]);
       
@@ -888,40 +924,6 @@
         title: 'Add New Customer',
         content,
         footer
-      });
-      
-      content.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(content);
-        
-        try {
-          const supabase = await app.waitForSupabase();
-          const { data: customer, error } = await supabase
-            .from('customers')
-            .insert({
-              name: formData.get('name'),
-              email: formData.get('email').toLowerCase(),
-              phone: formData.get('phone'),
-              address: formData.get('address')
-            })
-            .select()
-            .single();
-          
-          if (error) throw error;
-          
-          // Add to dropdown and select
-          customers.push(customer);
-          const option = document.createElement('option');
-          option.value = customer.id;
-          option.textContent = `${customer.name} (${customer.email})`;
-          $('#customer-select').appendChild(option);
-          $('#customer-select').value = customer.id;
-          
-          closeModal(modal);
-          showToast('Customer added', 'success');
-        } catch (err) {
-          showToast('Failed to add customer: ' + err.message, 'error');
-        }
       });
     }
     

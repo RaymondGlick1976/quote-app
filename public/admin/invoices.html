@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoices | Admin | Homestead Cabinet Design</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="app-sidebar">
+      <div class="sidebar-logo">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--color-accent)">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H5v-2h7v2zm7-4H5v-2h14v2zm0-4H5V7h14v2z"/>
+        </svg>
+        Homestead
+      </div>
+      <nav>
+        <ul class="sidebar-nav">
+          <li class="sidebar-nav-item"><a href="/admin/index.html" class="sidebar-nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a></li>
+          <li class="sidebar-nav-item"><a href="/admin/customers.html" class="sidebar-nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Customers</a></li>
+          <li class="sidebar-nav-item"><a href="/admin/quotes.html" class="sidebar-nav-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>Quotes</a></li>
+          <li class="sidebar-nav-item"><a href="/admin/invoices.html" class="sidebar-nav-link active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>Invoices</a></li>
+        </ul>
+      </nav>
+    </aside>
+    
+    <main class="app-main">
+      <header class="app-header">
+        <h2>Invoices</h2>
+      </header>
+      
+      <div class="app-content">
+        <!-- Filters -->
+        <div class="card mb-xl">
+          <div class="card-body">
+            <div class="flex gap-md items-center">
+              <input type="text" id="search-input" class="form-input" placeholder="Search invoices..." style="max-width: 300px;">
+              <select id="status-filter" class="form-select" style="max-width: 150px;">
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="viewed">Viewed</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Invoices Table -->
+        <div class="card">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Customer</th>
+                  <th>Title</th>
+                  <th>Total</th>
+                  <th>Paid</th>
+                  <th>Due</th>
+                  <th>Status</th>
+                  <th>Due Date</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="invoices-tbody">
+                <tr>
+                  <td colspan="9" style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner" style="margin: 0 auto;"></div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <script src="/js/utils.js"></script>
+  <script>
+    const { $, formatCurrency, formatDate, createElement, clearElement, showToast, debounce } = app;
+    
+    let invoices = [];
+    
+    async function loadInvoices() {
+      try {
+        const supabase = await app.waitForSupabase();
+        
+        const { data, error } = await supabase
+          .from('invoices')
+          .select('*, customers(name, email)')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        invoices = data || [];
+        renderInvoices(invoices);
+      } catch (err) {
+        console.error('Load error:', err);
+        showToast('Failed to load invoices', 'error');
+      }
+    }
+    
+    function renderInvoices(data) {
+      const tbody = $('#invoices-tbody');
+      clearElement(tbody);
+      
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-xl">No invoices found</td></tr>';
+        return;
+      }
+      
+      data.forEach(invoice => {
+        const row = createElement('tr');
+        row.innerHTML = `
+          <td><strong>${invoice.invoice_number}</strong></td>
+          <td>
+            <div>${invoice.customers?.name || '—'}</div>
+            <div class="text-sm text-muted">${invoice.customers?.email || ''}</div>
+          </td>
+          <td>${invoice.title}</td>
+          <td>${formatCurrency(invoice.total)}</td>
+          <td>${formatCurrency(invoice.amount_paid)}</td>
+          <td class="${invoice.amount_due > 0 ? 'text-danger font-bold' : ''}">${formatCurrency(invoice.amount_due)}</td>
+          <td><span class="badge badge-${invoice.status}">${invoice.status}</span></td>
+          <td>${invoice.due_date ? formatDate(invoice.due_date) : '—'}</td>
+          <td class="table-actions">
+            <button class="btn btn-ghost btn-sm" onclick="viewInvoice('${invoice.id}')">View</button>
+            ${invoice.status === 'draft' ? `<button class="btn btn-ghost btn-sm" onclick="sendInvoice('${invoice.id}')">Send</button>` : ''}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+    
+    // Search & Filter
+    const searchInput = $('#search-input');
+    const statusFilter = $('#status-filter');
+    
+    function applyFilters() {
+      const query = searchInput.value.toLowerCase();
+      const status = statusFilter.value;
+      
+      let filtered = invoices;
+      
+      if (query) {
+        filtered = filtered.filter(inv => 
+          inv.invoice_number.toLowerCase().includes(query) ||
+          inv.title.toLowerCase().includes(query) ||
+          inv.customers?.name?.toLowerCase().includes(query) ||
+          inv.customers?.email?.toLowerCase().includes(query)
+        );
+      }
+      
+      if (status) {
+        filtered = filtered.filter(inv => inv.status === status);
+      }
+      
+      renderInvoices(filtered);
+    }
+    
+    searchInput.addEventListener('input', debounce(applyFilters, 300));
+    statusFilter.addEventListener('change', applyFilters);
+    
+    window.viewInvoice = (id) => {
+      // For now, just show an alert - you can build out a full invoice view later
+      const invoice = invoices.find(i => i.id === id);
+      if (invoice) {
+        alert(`Invoice: ${invoice.invoice_number}\nTotal: ${formatCurrency(invoice.total)}\nPaid: ${formatCurrency(invoice.amount_paid)}\nDue: ${formatCurrency(invoice.amount_due)}`);
+      }
+    };
+    
+    window.sendInvoice = async (id) => {
+      if (!confirm('Send this invoice to the customer?')) return;
+      
+      try {
+        const supabase = await app.waitForSupabase();
+        await supabase
+          .from('invoices')
+          .update({ status: 'sent', sent_at: new Date().toISOString() })
+          .eq('id', id);
+        
+        showToast('Invoice sent', 'success');
+        loadInvoices();
+      } catch (err) {
+        showToast('Failed to send invoice', 'error');
+      }
+    };
+    
+    // Initialize
+    loadInvoices();
+  </script>
+</body>
+</html>

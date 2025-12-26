@@ -19,13 +19,13 @@ const supabaseScript = document.createElement('script');
 supabaseScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 document.head.appendChild(supabaseScript);
 
-let supabase = null;
+let _supabaseClient = null;
 
 function initSupabase() {
-  if (!supabase && window.supabase) {
-    supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  if (!_supabaseClient && window.supabase) {
+    _supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
   }
-  return supabase;
+  return _supabaseClient;
 }
 
 // Wait for Supabase to load

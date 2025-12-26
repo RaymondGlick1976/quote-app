@@ -586,3 +586,16 @@ window.app = {
   debounce,
   throttle
 };
+
+// Also expose as globals for convenience
+window.$ = $;
+window.$$ = $$;
+window.createElement = createElement;
+window.clearElement = clearElement;
+window.showToast = showToast;
+window.createModal = createModal;
+window.closeModal = closeModal;
+window.formatCurrency = formatCurrency;
+window.formatDate = formatDate;
+window.formatPhone = formatPhone;
+window.debounce = debounce;

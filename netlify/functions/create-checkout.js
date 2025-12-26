@@ -18,7 +18,7 @@ exports.handler = async (event) => {
     return error('Unauthorized', 401);
   }
   
-  const { quote_id, selected_options } = parseBody(event);
+  const { quote_id, selected_options, payment_amount } = parseBody(event);
   
   if (!quote_id) {
     return error('Quote ID required');
@@ -82,19 +82,27 @@ exports.handler = async (event) => {
     const taxAmount = subtotal * parseFloat(quote.tax_rate || 0);
     const total = subtotal + taxAmount;
     
-    // Calculate deposit
-    let depositAmount;
+    // Calculate minimum deposit
+    let minDeposit;
     if (quote.deposit_type === 'percentage') {
-      depositAmount = total * (parseFloat(quote.deposit_value) / 100);
+      minDeposit = total * (parseFloat(quote.deposit_value) / 100);
     } else {
-      depositAmount = parseFloat(quote.deposit_value);
+      minDeposit = parseFloat(quote.deposit_value);
+    }
+    
+    // Use custom payment amount if provided, otherwise use minimum deposit
+    let paymentAmount = payment_amount ? parseFloat(payment_amount) : minDeposit;
+    
+    // Validate payment amount is at least the minimum deposit
+    if (paymentAmount < minDeposit) {
+      return error(`Payment amount must be at least ${minDeposit.toFixed(2)}`);
     }
     
     // Ensure minimum $0.50 for Stripe
-    depositAmount = Math.max(depositAmount, 0.50);
+    paymentAmount = Math.max(paymentAmount, 0.50);
     
     // Create Stripe Checkout session
-    const siteUrl = process.env.SITE_URL || 'https://homesteadcabinetdesign.com';
+    const siteUrl = (process.env.SITE_URL || 'https://homesteadcabinetdesign.com').replace(/\/+$/, '');
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -104,10 +112,10 @@ exports.handler = async (event) => {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Deposit for ${quote.title}`,
+              name: `Payment for ${quote.title}`,
               description: `Quote ${quote.quote_number}`,
             },
-            unit_amount: Math.round(depositAmount * 100), // Convert to cents
+            unit_amount: Math.round(paymentAmount * 100), // Convert to cents
           },
           quantity: 1,
         },
@@ -118,7 +126,8 @@ exports.handler = async (event) => {
       metadata: {
         quote_id,
         customer_id: customer.id,
-        payment_type: 'deposit',
+        payment_type: paymentAmount >= total ? 'full' : 'partial',
+        payment_amount: paymentAmount.toFixed(2),
       },
     });
     

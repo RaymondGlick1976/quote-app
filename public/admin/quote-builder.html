@@ -695,19 +695,20 @@
         
         // Options
         const optionsCell = createElement('div');
-        optionsCell.appendChild(createElement('label', { className: 'form-check' }, [
-          createElement('input', {
-            type: 'checkbox',
-            className: 'form-check-input',
-            checked: item.isOptional,
-            onChange: (e) => {
-              lineItems[index].isOptional = e.target.checked;
-              row.classList.toggle('optional', e.target.checked);
-              updateSummary();
-            }
-          }),
-          createElement('span', { className: 'form-check-label text-sm', textContent: 'Optional' })
-        ]));
+        const optCheckbox = createElement('input', {
+          type: 'checkbox',
+          className: 'form-check-input',
+          checked: item.isOptional
+        });
+        optCheckbox.addEventListener('change', (e) => {
+          lineItems[index].isOptional = e.target.checked;
+          row.classList.toggle('optional', e.target.checked);
+          updateSummary();
+        });
+        const optLabel = createElement('label', { className: 'form-check' });
+        optLabel.appendChild(optCheckbox);
+        optLabel.appendChild(createElement('span', { className: 'form-check-label text-sm', textContent: 'Optional' }));
+        optionsCell.appendChild(optLabel);
         row.appendChild(optionsCell);
         
         // Delete

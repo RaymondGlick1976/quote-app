@@ -403,20 +403,6 @@
           <div id="quote-date"></div>
         </div>
         
-        <!-- Video Section -->
-        <div id="video-section" class="quote-section" style="display: none;">
-          <div class="quote-section-header">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="23 7 16 12 23 17 23 7"/>
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-            </svg>
-            About Your Project
-          </div>
-          <div class="quote-section-body">
-            <div class="video-container" id="video-container"></div>
-          </div>
-        </div>
-        
         <!-- Line Items Section -->
         <div class="quote-section">
           <div class="quote-section-header">
@@ -471,10 +457,22 @@
         <!-- Accept Section -->
         <div class="accept-section" id="accept-section">
           <p class="text-muted mb-lg">
-            By accepting this quote, you agree to the terms and authorize the deposit charge.
+            By accepting this quote, you agree to the terms and authorize the payment.
           </p>
+          
+          <div style="max-width: 300px; margin: 0 auto var(--space-lg);">
+            <label class="form-label text-center" style="color: var(--color-text-light);">Payment Amount</label>
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <span style="font-size: 1.25rem;">$</span>
+              <input type="number" id="payment-amount" class="form-input" style="font-size: 1.25rem; text-align: center;" step="0.01" min="1">
+            </div>
+            <div class="text-sm text-muted mt-sm text-center">
+              Minimum deposit: <span id="min-deposit">$0.00</span>
+            </div>
+          </div>
+          
           <button class="btn btn-accent accept-btn" id="accept-btn">
-            Accept Quote & Pay Deposit
+            Accept Quote & Pay
           </button>
         </div>
         
@@ -482,6 +480,20 @@
         <div id="notes-section" class="quote-section" style="display: none;">
           <div class="quote-section-header">Notes</div>
           <div class="quote-section-body" id="notes-content"></div>
+        </div>
+        
+        <!-- Video Section (About Your Project) -->
+        <div id="video-section" class="quote-section" style="display: none;">
+          <div class="quote-section-header">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            About Your Project
+          </div>
+          <div class="quote-section-body">
+            <div class="video-container" id="video-container"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -749,6 +761,14 @@
       }
       
       $('#deposit-amount').textContent = formatCurrency(depositAmount);
+      $('#min-deposit').textContent = formatCurrency(depositAmount);
+      
+      // Set payment amount input to deposit amount (default)
+      const paymentInput = $('#payment-amount');
+      if (paymentInput && !paymentInput.dataset.userModified) {
+        paymentInput.value = depositAmount.toFixed(2);
+        paymentInput.min = depositAmount.toFixed(2);
+      }
     }
     
     function showImageModal(imageUrl) {
@@ -776,9 +796,23 @@
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M13 2v7h7"/></svg>';
     }
     
+    // Track when user modifies payment amount
+    $('#payment-amount').addEventListener('input', function() {
+      this.dataset.userModified = 'true';
+    });
+    
     // Accept quote button
     $('#accept-btn').addEventListener('click', async () => {
       const btn = $('#accept-btn');
+      const paymentAmount = parseFloat($('#payment-amount').value);
+      const minDeposit = parseFloat($('#payment-amount').min);
+      
+      // Validate payment amount
+      if (!paymentAmount || paymentAmount < minDeposit) {
+        showToast(`Minimum payment is ${formatCurrency(minDeposit)}`, 'error');
+        return;
+      }
+      
       btn.disabled = true;
       btn.textContent = 'Processing...';
       
@@ -788,12 +822,13 @@
           .filter(i => i.is_optional && i.is_selected)
           .map(i => i.id);
         
-        // Create checkout session
+        // Create checkout session with custom amount
         const response = await apiCall('create-checkout', {
           method: 'POST',
           body: JSON.stringify({
             quote_id: quoteId,
-            selected_options: selectedOptions
+            selected_options: selectedOptions,
+            payment_amount: paymentAmount
           })
         });
         
@@ -808,7 +843,7 @@
         console.error('Checkout error:', err);
         showToast('Failed to process. Please try again.', 'error');
         btn.disabled = false;
-        btn.textContent = 'Accept Quote & Pay Deposit';
+        btn.textContent = 'Accept Quote & Pay';
       }
     });
     

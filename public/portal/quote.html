@@ -605,24 +605,28 @@
       
       // Sort: required items first, then optional
       const sortedItems = [...lineItems].sort((a, b) => {
-        if (a.is_optional === b.is_optional) return a.sort_order - b.sort_order;
-        return a.is_optional ? 1 : -1;
+        const aOpt = a.is_optional === true;
+        const bOpt = b.is_optional === true;
+        if (aOpt === bOpt) return (a.sort_order || 0) - (b.sort_order || 0);
+        return aOpt ? 1 : -1;
       });
       
       sortedItems.forEach(item => {
-        const isSelectable = item.is_optional && ['sent', 'viewed'].includes(quote.status);
+        const isOptional = item.is_optional === true;
+        const isSelected = item.is_selected === true;
+        const isSelectable = isOptional && ['sent', 'viewed'].includes(quote.status);
         
         const itemEl = createElement('div', {
-          className: `line-item ${item.is_optional ? 'optional' : ''} ${item.is_selected ? 'selected' : ''}`,
+          className: `line-item ${isOptional ? 'optional' : ''} ${isSelected ? 'selected' : ''}`,
           dataset: { id: item.id }
         });
         
         // Checkbox (for optional items)
         const checkboxCell = createElement('div', { className: 'line-item-checkbox' });
-        if (item.is_optional) {
+        if (isOptional) {
           const checkbox = createElement('input', {
             type: 'checkbox',
-            checked: item.is_selected,
+            checked: isSelected,
             disabled: !isSelectable
           });
           checkbox.addEventListener('change', () => toggleOption(item.id, checkbox.checked));
@@ -650,7 +654,7 @@
         // Content
         const content = createElement('div', { className: 'line-item-content' });
         const title = createElement('h4', { textContent: item.description });
-        if (item.is_optional) {
+        if (isOptional) {
           title.innerHTML += '<span class="optional-badge">Optional</span>';
         }
         content.appendChild(title);
@@ -714,7 +718,9 @@
       let hasRange = false;
       
       lineItems.forEach(item => {
-        if (!item.is_optional || item.is_selected) {
+        const isOptional = item.is_optional === true;
+        const isSelected = item.is_selected === true;
+        if (!isOptional || isSelected) {
           if (item.is_range_pricing) {
             hasRange = true;
             subtotalLow += parseFloat(item.line_total_low || 0);
@@ -757,17 +763,22 @@
       if (quote.deposit_type === 'percentage') {
         depositAmount = (hasRange ? grandTotalLow : grandTotal) * (parseFloat(quote.deposit_value) / 100);
       } else {
-        depositAmount = parseFloat(quote.deposit_value);
+        depositAmount = parseFloat(quote.deposit_value || 0);
       }
+      
+      // Store minimum deposit for validation
+      window.minDepositAmount = depositAmount;
       
       $('#deposit-amount').textContent = formatCurrency(depositAmount);
       $('#min-deposit').textContent = formatCurrency(depositAmount);
       
       // Set payment amount input to deposit amount (default)
       const paymentInput = $('#payment-amount');
-      if (paymentInput && !paymentInput.dataset.userModified) {
-        paymentInput.value = depositAmount.toFixed(2);
+      if (paymentInput) {
         paymentInput.min = depositAmount.toFixed(2);
+        if (!paymentInput.dataset.userModified) {
+          paymentInput.value = depositAmount.toFixed(2);
+        }
       }
     }
     
@@ -805,7 +816,7 @@
     $('#accept-btn').addEventListener('click', async () => {
       const btn = $('#accept-btn');
       const paymentAmount = parseFloat($('#payment-amount').value);
-      const minDeposit = parseFloat($('#payment-amount').min);
+      const minDeposit = window.minDepositAmount || 0;
       
       // Validate payment amount
       if (!paymentAmount || paymentAmount < minDeposit) {

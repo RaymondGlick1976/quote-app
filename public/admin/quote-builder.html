@@ -576,7 +576,7 @@
         isRangePricing,
         photoUrl: catalogItem?.photo_url || null,
         isOptional: false,
-        isTaxable: true,
+        isTaxable: catalogItem?.is_taxable !== false,
         sortOrder: lineItems.length
       };
       

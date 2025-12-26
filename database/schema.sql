@@ -58,6 +58,7 @@ CREATE TABLE items_catalog (
   price_range_low DECIMAL(10, 2),
   price_range_high DECIMAL(10, 2),
   photo_url TEXT,
+  is_taxable BOOLEAN DEFAULT true,
   is_active BOOLEAN DEFAULT true,
   sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),

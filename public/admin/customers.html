@@ -198,42 +198,30 @@
       const footer = createElement('div', { className: 'flex justify-between' });
       
       const leftBtns = createElement('div');
+      let deleteBtn = null;
       if (isEdit) {
-        leftBtns.appendChild(createElement('button', {
+        deleteBtn = createElement('button', {
           type: 'button',
           className: 'btn btn-danger',
-          textContent: 'Delete',
-          onClick: async () => {
-            if (await confirm('Delete this customer? This cannot be undone.', { danger: true })) {
-              await deleteCustomer(customer.id);
-              closeModal(modal);
-            }
-          }
-        }));
+          textContent: 'Delete'
+        });
+        leftBtns.appendChild(deleteBtn);
       }
       footer.appendChild(leftBtns);
       
-      const rightBtns = createElement('div', { className: 'btn-group' }, [
-        createElement('button', {
-          type: 'button',
-          className: 'btn btn-secondary',
-          textContent: 'Cancel',
-          onClick: () => closeModal(modal)
-        }),
-        createElement('button', {
-          type: 'button',
-          className: 'btn btn-primary',
-          textContent: isEdit ? 'Save Changes' : 'Add Customer',
-          onClick: async () => {
-            if (content.checkValidity()) {
-              await saveCustomer(new FormData(content), customer?.id);
-              closeModal(modal);
-            } else {
-              content.reportValidity();
-            }
-          }
-        })
-      ]);
+      const rightBtns = createElement('div', { className: 'btn-group' });
+      const cancelBtn = createElement('button', {
+        type: 'button',
+        className: 'btn btn-secondary',
+        textContent: 'Cancel'
+      });
+      const submitBtn = createElement('button', {
+        type: 'button',
+        className: 'btn btn-primary',
+        textContent: isEdit ? 'Save Changes' : 'Add Customer'
+      });
+      rightBtns.appendChild(cancelBtn);
+      rightBtns.appendChild(submitBtn);
       footer.appendChild(rightBtns);
       
       const modal = createModal({
@@ -242,6 +230,25 @@
         footer,
         size: 'lg'
       });
+      
+      // Add event listeners AFTER modal is created
+      cancelBtn.addEventListener('click', () => closeModal(modal));
+      submitBtn.addEventListener('click', async () => {
+        if (content.checkValidity()) {
+          await saveCustomer(new FormData(content), customer?.id);
+          closeModal(modal);
+        } else {
+          content.reportValidity();
+        }
+      });
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+          if (await confirm('Delete this customer? This cannot be undone.', { danger: true })) {
+            await deleteCustomer(customer.id);
+            closeModal(modal);
+          }
+        });
+      }
     }
     
     async function saveCustomer(formData, id = null) {

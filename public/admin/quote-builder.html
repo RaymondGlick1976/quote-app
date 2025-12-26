@@ -870,60 +870,63 @@
         </div>
       `;
       
-      const footer = createElement('div', { className: 'btn-group' }, [
-        createElement('button', {
-          type: 'button',
-          className: 'btn btn-secondary',
-          textContent: 'Cancel',
-          onClick: () => closeModal(modal)
-        }),
-        createElement('button', {
-          type: 'button',
-          className: 'btn btn-primary',
-          textContent: 'Add Customer',
-          onClick: async () => {
-            if (!content.checkValidity()) {
-              content.reportValidity();
-              return;
-            }
-            const formData = new FormData(content);
-            
-            try {
-              const supabase = await app.waitForSupabase();
-              const { data: customer, error } = await supabase
-                .from('customers')
-                .insert({
-                  name: formData.get('name'),
-                  email: formData.get('email').toLowerCase(),
-                  phone: formData.get('phone'),
-                  address: formData.get('address')
-                })
-                .select()
-                .single();
-              
-              if (error) throw error;
-              
-              // Add to dropdown and select
-              customers.push(customer);
-              const option = document.createElement('option');
-              option.value = customer.id;
-              option.textContent = `${customer.name} (${customer.email})`;
-              $('#customer-select').appendChild(option);
-              $('#customer-select').value = customer.id;
-              
-              closeModal(modal);
-              showToast('Customer added', 'success');
-            } catch (err) {
-              showToast('Failed to add customer: ' + err.message, 'error');
-            }
-          }
-        })
-      ]);
+      const footer = createElement('div', { className: 'btn-group' });
+      const cancelBtn = createElement('button', {
+        type: 'button',
+        className: 'btn btn-secondary',
+        textContent: 'Cancel'
+      });
+      const submitBtn = createElement('button', {
+        type: 'button',
+        className: 'btn btn-primary',
+        textContent: 'Add Customer'
+      });
+      footer.appendChild(cancelBtn);
+      footer.appendChild(submitBtn);
       
       const modal = createModal({
         title: 'Add New Customer',
         content,
         footer
+      });
+      
+      // Add event listeners AFTER modal is created
+      cancelBtn.addEventListener('click', () => closeModal(modal));
+      submitBtn.addEventListener('click', async () => {
+        if (!content.checkValidity()) {
+          content.reportValidity();
+          return;
+        }
+        const formData = new FormData(content);
+        
+        try {
+          const supabase = await app.waitForSupabase();
+          const { data: customer, error } = await supabase
+            .from('customers')
+            .insert({
+              name: formData.get('name'),
+              email: formData.get('email').toLowerCase(),
+              phone: formData.get('phone'),
+              address: formData.get('address')
+            })
+            .select()
+            .single();
+          
+          if (error) throw error;
+          
+          // Add to dropdown and select
+          customers.push(customer);
+          const option = document.createElement('option');
+          option.value = customer.id;
+          option.textContent = `${customer.name} (${customer.email})`;
+          $('#customer-select').appendChild(option);
+          $('#customer-select').value = customer.id;
+          
+          closeModal(modal);
+          showToast('Customer added', 'success');
+        } catch (err) {
+          showToast('Failed to add customer: ' + err.message, 'error');
+        }
       });
     }
     

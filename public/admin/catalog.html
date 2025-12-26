@@ -268,33 +268,36 @@
       pricingRadios.forEach(radio => radio.addEventListener('change', updatePricingFields));
       if (item?.price_range_low) updatePricingFields();
       
-      const footer = createElement('div', { className: 'btn-group' }, [
-        createElement('button', {
-          type: 'button',
-          className: 'btn btn-secondary',
-          textContent: 'Cancel',
-          onClick: () => closeModal(modal)
-        }),
-        createElement('button', {
-          type: 'button',
-          className: 'btn btn-primary',
-          textContent: isEdit ? 'Save Changes' : 'Add Item',
-          onClick: async () => {
-            if (content.checkValidity()) {
-              await saveItem(new FormData(content), item?.id);
-              closeModal(modal);
-            } else {
-              content.reportValidity();
-            }
-          }
-        })
-      ]);
+      const footer = createElement('div', { className: 'btn-group' });
+      const cancelBtn = createElement('button', {
+        type: 'button',
+        className: 'btn btn-secondary',
+        textContent: 'Cancel'
+      });
+      const submitBtn = createElement('button', {
+        type: 'button',
+        className: 'btn btn-primary',
+        textContent: isEdit ? 'Save Changes' : 'Add Item'
+      });
+      footer.appendChild(cancelBtn);
+      footer.appendChild(submitBtn);
       
       const modal = createModal({
         title: isEdit ? 'Edit Catalog Item' : 'Add Catalog Item',
         content,
         footer,
         size: 'lg'
+      });
+      
+      // Add event listeners AFTER modal is created
+      cancelBtn.addEventListener('click', () => closeModal(modal));
+      submitBtn.addEventListener('click', async () => {
+        if (content.checkValidity()) {
+          await saveItem(new FormData(content), item?.id);
+          closeModal(modal);
+        } else {
+          content.reportValidity();
+        }
       });
     }
     

@@ -258,6 +258,93 @@
       text-align: center;
       margin-bottom: var(--space-xl);
     }
+    
+    .quote-actions {
+      display: flex;
+      gap: var(--space-md);
+      justify-content: flex-end;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .print-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    /* Print Styles */
+    @media print {
+      body {
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      
+      .portal-header,
+      .portal-nav,
+      .quote-actions,
+      .accept-section,
+      #accept-btn,
+      .line-item-checkbox {
+        display: none !important;
+      }
+      
+      .portal-container {
+        padding: 0 !important;
+        max-width: none !important;
+      }
+      
+      .quote-container {
+        max-width: none !important;
+      }
+      
+      .quote-section {
+        break-inside: avoid;
+        box-shadow: none !important;
+        border: 1px solid #ddd;
+      }
+      
+      .line-item {
+        grid-template-columns: 60px 1fr auto !important;
+      }
+      
+      .totals-section {
+        background: #5B4C43 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      
+      .quote-header {
+        background: #5B4C43 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      
+      /* Add company header for print */
+      .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: var(--space-xl);
+        padding-bottom: var(--space-lg);
+        border-bottom: 2px solid #5B4C43;
+      }
+      
+      .print-header h1 {
+        color: #5B4C43;
+        margin: 0;
+      }
+      
+      .print-header p {
+        color: #666;
+        margin: var(--space-sm) 0 0;
+      }
+    }
+    
+    @media screen {
+      .print-header {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -288,6 +375,24 @@
       
       <!-- Quote Content -->
       <div id="quote-content" style="display: none;">
+        <!-- Print Header (only shows when printing) -->
+        <div class="print-header">
+          <h1>Homestead Cabinet Design</h1>
+          <p>raymond@homesteadcabinetdesign.com</p>
+        </div>
+        
+        <!-- Actions Bar -->
+        <div class="quote-actions no-print">
+          <button class="btn btn-secondary print-btn" onclick="window.print()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print / Save PDF
+          </button>
+        </div>
+        
         <!-- Status Banner -->
         <div id="status-banner"></div>
         

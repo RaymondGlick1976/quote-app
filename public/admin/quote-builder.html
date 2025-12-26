@@ -700,8 +700,13 @@
           className: 'form-check-input',
           checked: item.isOptional
         });
+        const itemId = item.id; // Capture item id in closure
         optCheckbox.addEventListener('change', (e) => {
-          lineItems[index].isOptional = e.target.checked;
+          const targetItem = lineItems.find(i => i.id === itemId);
+          if (targetItem) {
+            targetItem.isOptional = e.target.checked;
+            console.log('Set isOptional to', e.target.checked, 'for item', itemId);
+          }
           row.classList.toggle('optional', e.target.checked);
           updateSummary();
         });
@@ -1034,24 +1039,27 @@
         // Delete existing line items and re-insert
         await supabase.from('quote_line_items').delete().eq('quote_id', quoteId);
         
-        const lineItemsToInsert = lineItems.map((item, index) => ({
-          quote_id: quoteId,
-          catalog_item_id: item.catalogItemId,
-          description: item.description,
-          details: item.details,
-          quantity: item.quantity,
-          unit_price: item.isRangePricing ? null : item.unitPrice,
-          price_range_low: item.isRangePricing ? item.priceRangeLow : null,
-          price_range_high: item.isRangePricing ? item.priceRangeHigh : null,
-          is_range_pricing: item.isRangePricing,
-          line_total: item.isRangePricing ? null : (item.unitPrice * item.quantity),
-          line_total_low: item.isRangePricing ? (item.priceRangeLow * item.quantity) : (item.unitPrice * item.quantity),
-          line_total_high: item.isRangePricing ? (item.priceRangeHigh * item.quantity) : (item.unitPrice * item.quantity),
-          photo_url: item.photoUrl,
-          is_optional: item.isOptional,
-          is_taxable: item.isTaxable,
-          sort_order: index
-        }));
+        const lineItemsToInsert = lineItems.map((item, index) => {
+          console.log('Saving item:', item.description, 'isOptional:', item.isOptional);
+          return {
+            quote_id: quoteId,
+            catalog_item_id: item.catalogItemId,
+            description: item.description,
+            details: item.details,
+            quantity: item.quantity,
+            unit_price: item.isRangePricing ? null : item.unitPrice,
+            price_range_low: item.isRangePricing ? item.priceRangeLow : null,
+            price_range_high: item.isRangePricing ? item.priceRangeHigh : null,
+            is_range_pricing: item.isRangePricing,
+            line_total: item.isRangePricing ? null : (item.unitPrice * item.quantity),
+            line_total_low: item.isRangePricing ? (item.priceRangeLow * item.quantity) : (item.unitPrice * item.quantity),
+            line_total_high: item.isRangePricing ? (item.priceRangeHigh * item.quantity) : (item.unitPrice * item.quantity),
+            photo_url: item.photoUrl,
+            is_optional: item.isOptional,
+            is_taxable: item.isTaxable,
+            sort_order: index
+          };
+        });
         
         await supabase.from('quote_line_items').insert(lineItemsToInsert);
         

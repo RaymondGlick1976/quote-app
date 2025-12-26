@@ -247,10 +247,10 @@
                 </div>
               </div>
               <div class="card-body">
+                <div class="text-center text-muted p-xl" id="empty-items">
+                  No line items yet. Add items from the catalog or create custom items.
+                </div>
                 <div class="line-items-list" id="line-items-container">
-                  <div class="text-center text-muted p-xl" id="empty-items">
-                    No line items yet. Add items from the catalog or create custom items.
-                  </div>
                 </div>
               </div>
             </div>
@@ -589,13 +589,14 @@
       const container = $('#line-items-container');
       const emptyState = $('#empty-items');
       
+      clearElement(container);
+      
       if (lineItems.length === 0) {
         emptyState.style.display = 'block';
         return;
       }
       
       emptyState.style.display = 'none';
-      clearElement(container);
       
       lineItems.forEach((item, index) => {
         const row = createElement('div', {
@@ -1055,7 +1056,29 @@
         
         // TODO: Handle attachment uploads to Supabase Storage
         
-        showToast(status === 'sent' ? 'Quote sent to customer!' : 'Quote saved as draft', 'success');
+        // Send email if status is 'sent'
+        if (status === 'sent') {
+          try {
+            const emailResponse = await fetch('/.netlify/functions/send-quote-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ quoteId: savedQuote.id })
+            });
+            
+            if (!emailResponse.ok) {
+              const emailError = await emailResponse.json();
+              console.error('Email error:', emailError);
+              showToast('Quote saved but email failed to send', 'error');
+            } else {
+              showToast('Quote sent to customer!', 'success');
+            }
+          } catch (emailErr) {
+            console.error('Email error:', emailErr);
+            showToast('Quote saved but email failed to send', 'error');
+          }
+        } else {
+          showToast('Quote saved as draft', 'success');
+        }
         
         // Redirect to quote view
         setTimeout(() => {

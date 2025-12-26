@@ -173,19 +173,26 @@
     };
     
     window.sendInvoice = async (id) => {
-      if (!confirm('Send this invoice to the customer?')) return;
+      if (!await confirm('Send this invoice to the customer?')) return;
       
       try {
-        const supabase = await app.waitForSupabase();
-        await supabase
-          .from('invoices')
-          .update({ status: 'sent', sent_at: new Date().toISOString() })
-          .eq('id', id);
+        // Call email function
+        const response = await fetch('/.netlify/functions/send-invoice-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoiceId: id })
+        });
         
-        showToast('Invoice sent', 'success');
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to send email');
+        }
+        
+        showToast('Invoice sent to customer!', 'success');
         loadInvoices();
       } catch (err) {
-        showToast('Failed to send invoice', 'error');
+        console.error('Send error:', err);
+        showToast('Failed to send: ' + err.message, 'error');
       }
     };
     

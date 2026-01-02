@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -33,9 +34,19 @@ exports.handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Customer email not found' }) };
     }
 
-    // Generate portal link (remove trailing slash from SITE_URL if present)
+    // Generate access token if not exists
+    let accessToken = quote.access_token;
+    if (!accessToken) {
+      accessToken = crypto.randomBytes(32).toString('hex');
+      await supabase
+        .from('quotes')
+        .update({ access_token: accessToken })
+        .eq('id', quoteId);
+    }
+
+    // Generate portal link with direct access token
     const siteUrl = (process.env.SITE_URL || 'https://hcdbooks.netlify.app').replace(/\/+$/, '');
-    const portalLink = `${siteUrl}/portal/login.html`;
+    const directLink = `${siteUrl}/portal/quote.html?token=${accessToken}`;
 
     // Format total for email
     const formatCurrency = (amount) => {
@@ -62,7 +73,7 @@ exports.handler = async (event) => {
         </div>
         
         <div style="padding: 30px; background: #f9f9f9;">
-          <h2 style="color: #333;">Hi ${customer.name},</h2>
+          <h2 style="color: #333;">Hi ${customer.name.split(' ')[0]},</h2>
           
           <p style="color: #555; font-size: 16px; line-height: 1.6;">
             Thank you for your interest in our services! We've prepared a quote for your project:
@@ -76,15 +87,15 @@ exports.handler = async (event) => {
           </div>
           
           <p style="color: #555; font-size: 16px; line-height: 1.6;">
-            To view the full details, accept, or make a payment, visit your customer portal:
+            Click the button below to view the full details and accept your quote:
           </p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${portalLink}" style="background: #C9A66B; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">View Quote</a>
+            <a href="${directLink}" style="background: #C9A66B; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">View Quote</a>
           </div>
           
           <p style="color: #888; font-size: 14px;">
-            You'll be asked to enter your email address to access your portal.
+            This link is unique to your quote and doesn't require a login.
           </p>
         </div>
         

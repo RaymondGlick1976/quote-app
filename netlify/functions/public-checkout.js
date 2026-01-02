@@ -1,9 +1,9 @@
 // =============================================
-// CREATE CHECKOUT - Stripe Checkout for quote deposit
+// PUBLIC CHECKOUT - Create Stripe checkout session (no login required)
 // =============================================
 
 const Stripe = require('stripe');
-const { getSupabase, success, error, handleCors, parseBody, validateSession } = require('./utils');
+const { getSupabase, success, error, handleCors, parseBody } = require('./utils');
 
 exports.handler = async (event) => {
   const corsResponse = handleCors(event);
@@ -13,56 +13,51 @@ exports.handler = async (event) => {
     return error('Method not allowed', 405);
   }
   
-  const customer = await validateSession(event);
-  if (!customer) {
-    return error('Unauthorized', 401);
-  }
+  const { token, selected_options, payment_amount } = parseBody(event);
   
-  const { quote_id, selected_options, payment_amount } = parseBody(event);
-  
-  if (!quote_id) {
-    return error('Quote ID required');
+  if (!token) {
+    return error('Access token required', 400);
   }
   
   const supabase = getSupabase();
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   
   try {
-    // Get quote
+    // Get quote by token
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
-      .select('*')
-      .eq('id', quote_id)
-      .eq('customer_id', customer.id)
+      .select('*, customers(name, email)')
+      .eq('access_token', token)
       .single();
     
     if (quoteError || !quote) {
-      return error('Quote not found', 404);
+      return error('Invalid access token', 401);
     }
     
-    // Check quote is valid for acceptance
-    if (!['sent', 'viewed'].includes(quote.status)) {
-      return error('Quote cannot be accepted');
+    // Check if already accepted
+    if (quote.status === 'accepted') {
+      return error('Quote has already been accepted', 400);
     }
     
+    // Check if expired
     if (quote.expires_at && new Date(quote.expires_at) < new Date()) {
-      return error('Quote has expired');
+      return error('Quote has expired', 400);
     }
     
     // Update selected options if provided
     if (selected_options && selected_options.length > 0) {
-      // Reset all optional items
+      // First reset all optional items to not selected
       await supabase
         .from('quote_line_items')
         .update({ is_selected: false })
-        .eq('quote_id', quote_id)
+        .eq('quote_id', quote.id)
         .eq('is_optional', true);
       
-      // Set selected ones
+      // Then mark selected ones
       await supabase
         .from('quote_line_items')
         .update({ is_selected: true })
-        .eq('quote_id', quote_id)
+        .eq('quote_id', quote.id)
         .in('id', selected_options);
     }
     
@@ -70,7 +65,7 @@ exports.handler = async (event) => {
     const { data: lineItems } = await supabase
       .from('quote_line_items')
       .select('*')
-      .eq('quote_id', quote_id);
+      .eq('quote_id', quote.id);
     
     let subtotal = 0;
     let taxableSubtotal = 0;
@@ -101,7 +96,7 @@ exports.handler = async (event) => {
     // Use custom payment amount if provided, otherwise use minimum deposit
     let paymentAmount = payment_amount ? Math.round(parseFloat(payment_amount) * 100) / 100 : minDeposit;
     
-    // Validate payment amount is at least the minimum deposit (with small tolerance)
+    // Validate payment amount (with small tolerance)
     if (paymentAmount < minDeposit - 0.01) {
       return error(`Payment amount must be at least $${minDeposit.toFixed(2)}`);
     }
@@ -110,39 +105,37 @@ exports.handler = async (event) => {
     paymentAmount = Math.max(paymentAmount, 0.50);
     
     // Create Stripe Checkout session
-    const siteUrl = (process.env.SITE_URL || 'https://homesteadcabinetdesign.com').replace(/\/+$/, '');
+    const siteUrl = (process.env.SITE_URL || 'https://hcdbooks.netlify.app').replace(/\/+$/, '');
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      customer_email: customer.email,
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `Payment for ${quote.title}`,
-              description: `Quote ${quote.quote_number}`,
-            },
-            unit_amount: Math.round(paymentAmount * 100), // Convert to cents
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${quote.quote_number} - ${quote.title}`,
+            description: paymentAmount >= total ? 'Full Payment' : 'Deposit Payment',
           },
-          quantity: 1,
+          unit_amount: Math.round(paymentAmount * 100),
         },
-      ],
+        quantity: 1,
+      }],
       mode: 'payment',
-      success_url: `${siteUrl}/portal/quote.html?id=${quote_id}&payment=success`,
-      cancel_url: `${siteUrl}/portal/quote.html?id=${quote_id}&payment=cancelled`,
+      success_url: `${siteUrl}/portal/quote.html?token=${token}&payment=success`,
+      cancel_url: `${siteUrl}/portal/quote.html?token=${token}&payment=cancelled`,
+      customer_email: quote.customers?.email,
       metadata: {
-        quote_id,
-        customer_id: customer.id,
+        quote_id: quote.id,
+        customer_id: quote.customer_id,
         payment_type: paymentAmount >= total ? 'full' : 'partial',
-        payment_amount: paymentAmount.toFixed(2),
+        access_token: token,
       },
     });
     
     return success({ url: session.url });
     
   } catch (err) {
-    console.error('Checkout error:', err);
+    console.error('Public checkout error:', err);
     return error('Failed to create checkout session', 500);
   }
 };

@@ -165,12 +165,142 @@
     searchInput.addEventListener('input', debounce(applyFilters, 300));
     statusFilter.addEventListener('change', applyFilters);
     
-    window.viewInvoice = (id) => {
-      // For now, just show an alert - you can build out a full invoice view later
+    window.viewInvoice = async (id) => {
       const invoice = invoices.find(i => i.id === id);
-      if (invoice) {
-        alert(`Invoice: ${invoice.invoice_number}\nTotal: ${formatCurrency(invoice.total)}\nPaid: ${formatCurrency(invoice.amount_paid)}\nDue: ${formatCurrency(invoice.amount_due)}`);
+      if (!invoice) return;
+      
+      // Load line items
+      const supabase = await app.waitForSupabase();
+      const { data: lineItems } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', id)
+        .order('sort_order');
+      
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('invoice_id', id)
+        .eq('status', 'succeeded')
+        .order('payment_date', { ascending: false });
+      
+      let itemsHtml = '';
+      if (lineItems && lineItems.length > 0) {
+        itemsHtml = `
+          <table class="table" style="margin-bottom: var(--space-lg);">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align: right;">Qty</th>
+                <th style="text-align: right;">Price</th>
+                <th style="text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lineItems.map(item => `
+                <tr>
+                  <td>
+                    <div>${item.description}</div>
+                    ${item.details ? `<div class="text-sm text-muted">${item.details}</div>` : ''}
+                  </td>
+                  <td style="text-align: right;">${item.quantity}</td>
+                  <td style="text-align: right;">${formatCurrency(item.unit_price)}</td>
+                  <td style="text-align: right;">${formatCurrency(item.line_total)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
       }
+      
+      let paymentsHtml = '';
+      if (payments && payments.length > 0) {
+        paymentsHtml = `
+          <div style="margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--color-border);">
+            <h4 style="margin-bottom: var(--space-sm);">Payment History</h4>
+            ${payments.map(p => `
+              <div class="flex justify-between items-center" style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-border-light);">
+                <div>
+                  <div>${formatCurrency(p.amount)}</div>
+                  <div class="text-sm text-muted">${formatDate(p.payment_date)} • ${p.payment_method || 'Card'}</div>
+                </div>
+                <span class="badge badge-paid">Paid</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+      
+      const content = `
+        <div class="flex justify-between mb-lg">
+          <div>
+            <div class="text-sm text-muted">Customer</div>
+            <div class="font-bold">${invoice.customers?.name || '—'}</div>
+            <div class="text-sm">${invoice.customers?.email || ''}</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="text-sm text-muted">Due Date</div>
+            <div class="font-bold">${invoice.due_date ? formatDate(invoice.due_date) : '—'}</div>
+          </div>
+        </div>
+        
+        ${itemsHtml}
+        
+        <div style="background: var(--color-bg-soft); padding: var(--space-md); border-radius: var(--radius-md);">
+          <div class="flex justify-between mb-sm">
+            <span>Subtotal</span>
+            <span>${formatCurrency(invoice.subtotal)}</span>
+          </div>
+          ${invoice.tax_amount > 0 ? `
+            <div class="flex justify-between mb-sm">
+              <span>Tax (${(invoice.tax_rate * 100).toFixed(2)}%)</span>
+              <span>${formatCurrency(invoice.tax_amount)}</span>
+            </div>
+          ` : ''}
+          <div class="flex justify-between font-bold" style="padding-top: var(--space-sm); border-top: 1px solid var(--color-border);">
+            <span>Total</span>
+            <span>${formatCurrency(invoice.total)}</span>
+          </div>
+          <div class="flex justify-between mt-sm text-success">
+            <span>Paid</span>
+            <span>${formatCurrency(invoice.amount_paid)}</span>
+          </div>
+          <div class="flex justify-between mt-sm font-bold" style="color: ${invoice.amount_due > 0 ? 'var(--color-danger)' : 'var(--color-success)'};">
+            <span>Balance Due</span>
+            <span>${formatCurrency(invoice.amount_due)}</span>
+          </div>
+        </div>
+        
+        ${paymentsHtml}
+      `;
+      
+      const footer = createElement('div', { className: 'btn-group' });
+      const closeBtn = createElement('button', {
+        className: 'btn btn-secondary',
+        textContent: 'Close'
+      });
+      footer.appendChild(closeBtn);
+      
+      if (invoice.amount_due > 0) {
+        const payBtn = createElement('button', {
+          className: 'btn btn-primary',
+          textContent: 'Record Payment'
+        });
+        payBtn.addEventListener('click', () => {
+          closeModal(modal);
+          recordPayment(id);
+        });
+        footer.appendChild(payBtn);
+      }
+      
+      const modal = createModal({
+        title: `Invoice ${invoice.invoice_number}`,
+        content: content,
+        footer: footer,
+        size: 'lg'
+      });
+      
+      closeBtn.addEventListener('click', () => closeModal(modal));
     };
     
     window.sendInvoice = async (id) => {
@@ -246,7 +376,11 @@
       footer.appendChild(cancelBtn);
       footer.appendChild(saveBtn);
       
-      const modal = createModal(`Record Payment - ${invoice.invoice_number}`, content, footer);
+      const modal = createModal({
+        title: `Record Payment - ${invoice.invoice_number}`,
+        content: content,
+        footer: footer
+      });
       
       cancelBtn.addEventListener('click', () => closeModal(modal));
       

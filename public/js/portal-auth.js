@@ -10,6 +10,16 @@
     return;
   }
   
+  // Check if public access is enabled (set by page before including this script)
+  // Also check URL for token parameter
+  const params = new URLSearchParams(window.location.search);
+  const hasToken = params.get('token');
+  
+  if (window.skipAuthCheck || hasToken) {
+    // Skip auth check for public access
+    return;
+  }
+  
   // Check for session (localStorage flag set during login)
   const hasSession = localStorage.getItem('portal_logged_in') === 'true';
   

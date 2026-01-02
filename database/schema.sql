@@ -94,6 +94,7 @@ CREATE TABLE quotes (
   notes TEXT,
   internal_notes TEXT,
   valid_days INTEGER DEFAULT 30,
+  access_token VARCHAR(64) UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   sent_at TIMESTAMPTZ,
@@ -105,6 +106,7 @@ CREATE TABLE quotes (
 CREATE INDEX idx_quotes_customer ON quotes(customer_id);
 CREATE INDEX idx_quotes_status ON quotes(status);
 CREATE INDEX idx_quotes_number ON quotes(quote_number);
+CREATE INDEX idx_quotes_token ON quotes(access_token);
 
 -- =============================================
 -- QUOTE LINE ITEMS

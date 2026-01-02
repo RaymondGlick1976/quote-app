@@ -58,15 +58,15 @@
       border-style: solid;
     }
     
-    .line-item-checkbox {
-      padding-top: 4px;
+    .line-item-action {
+      min-width: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
-    .line-item-checkbox input {
-      width: 20px;
-      height: 20px;
-      accent-color: var(--color-accent);
-      cursor: pointer;
+    .line-item-action .btn {
+      white-space: nowrap;
     }
     
     .line-item-photo {
@@ -285,7 +285,7 @@
       .quote-actions,
       .accept-section,
       #accept-btn,
-      .line-item-checkbox {
+      .line-item-action {
         display: none !important;
       }
       
@@ -348,14 +348,14 @@
   </style>
 </head>
 <body>
-  <header class="portal-header">
+  <header class="portal-header" id="portal-header">
     <a href="/portal/dashboard.html" class="portal-logo">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--color-accent)">
         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14H5v-2h7v2zm7-4H5v-2h14v2zm0-4H5V7h14v2z"/>
       </svg>
       Homestead Cabinet Design
     </a>
-    <nav class="portal-nav">
+    <nav class="portal-nav" id="portal-nav">
       <a href="/portal/dashboard.html" class="portal-nav-link">Dashboard</a>
       <a href="/portal/quotes.html" class="portal-nav-link active">Quotes</a>
       <a href="/portal/invoices.html" class="portal-nav-link">Invoices</a>
@@ -507,41 +507,84 @@
     let lineItems = [];
     let attachments = [];
     let stripe = null;
+    let accessToken = null;
+    let isPublicAccess = false;
     
-    // Get quote ID from URL
+    // Get quote ID or token from URL
     const params = new URLSearchParams(window.location.search);
     const quoteId = params.get('id');
+    accessToken = params.get('token');
     
-    if (!quoteId) {
+    // Check for payment status
+    const paymentStatus = params.get('payment');
+    if (paymentStatus === 'success') {
+      setTimeout(() => {
+        showToast('Payment successful! Thank you.', 'success');
+      }, 500);
+    } else if (paymentStatus === 'cancelled') {
+      setTimeout(() => {
+        showToast('Payment was cancelled.', 'info');
+      }, 500);
+    }
+    
+    // Determine access mode
+    if (accessToken) {
+      isPublicAccess = true;
+      // Skip auth check for public access
+      window.skipAuthCheck = true;
+    } else if (!quoteId) {
       window.location.href = '/portal/quotes.html';
     }
     
     async function loadQuote() {
       try {
-        const response = await apiCall(`portal-quote?id=${quoteId}`);
+        let response;
+        
+        if (isPublicAccess) {
+          // Use public API with token
+          response = await fetch(`/.netlify/functions/public-quote?token=${accessToken}`);
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to load quote');
+          }
+          response = await response.json();
+        } else {
+          // Use authenticated API
+          response = await apiCall(`portal-quote?id=${quoteId}`);
+        }
+        
         quote = response.quote;
         lineItems = response.line_items;
         attachments = response.attachments;
         
         renderQuote();
         
-        // Mark as viewed
-        if (quote.status === 'sent') {
-          apiCall('portal-quote-view', {
-            method: 'POST',
-            body: JSON.stringify({ quote_id: quoteId })
-          }).catch(() => {});
-        }
-        
       } catch (err) {
         console.error('Failed to load quote:', err);
-        showToast('Failed to load quote', 'error');
+        showToast(err.message || 'Failed to load quote', 'error');
+        
+        // Show error state
+        $('#loading-state').innerHTML = `
+          <div class="card">
+            <div class="card-body text-center" style="padding: var(--space-3xl);">
+              <h3 style="color: var(--color-danger);">Unable to Load Quote</h3>
+              <p class="text-muted">${err.message || 'The quote link may be invalid or expired.'}</p>
+              <a href="/portal/login.html" class="btn btn-primary mt-lg">Go to Portal</a>
+            </div>
+          </div>
+        `;
       }
     }
     
     function renderQuote() {
       $('#loading-state').style.display = 'none';
       $('#quote-content').style.display = 'block';
+      
+      // Hide navigation for public access
+      if (isPublicAccess) {
+        const nav = $('#portal-nav');
+        if (nav) nav.style.display = 'none';
+      }
       
       // Status banner
       const statusBanner = $('#status-banner');
@@ -621,18 +664,24 @@
           dataset: { id: item.id }
         });
         
-        // Checkbox (for optional items)
-        const checkboxCell = createElement('div', { className: 'line-item-checkbox' });
+        // Action button cell (for optional items)
+        const actionCell = createElement('div', { className: 'line-item-action' });
         if (isOptional) {
-          const checkbox = createElement('input', {
-            type: 'checkbox',
-            checked: isSelected,
+          const btn = createElement('button', {
+            className: `btn btn-sm ${isSelected ? 'btn-danger' : 'btn-primary'}`,
+            textContent: isSelected ? 'Remove' : 'Add',
             disabled: !isSelectable
           });
-          checkbox.addEventListener('change', () => toggleOption(item.id, checkbox.checked));
-          checkboxCell.appendChild(checkbox);
+          btn.addEventListener('click', () => {
+            const newSelected = !isSelected;
+            toggleOption(item.id, newSelected);
+            // Update button
+            btn.textContent = newSelected ? 'Remove' : 'Add';
+            btn.className = `btn btn-sm ${newSelected ? 'btn-danger' : 'btn-primary'}`;
+          });
+          actionCell.appendChild(btn);
         }
-        itemEl.appendChild(checkboxCell);
+        itemEl.appendChild(actionCell);
         
         // Photo
         if (item.photo_url) {
@@ -704,10 +753,18 @@
         updateTotals();
         
         // Save selection to server
-        apiCall('portal-quote-selection', {
-          method: 'POST',
-          body: JSON.stringify({ quote_id: quoteId, item_id: itemId, selected })
-        }).catch(() => {});
+        if (isPublicAccess) {
+          fetch('/.netlify/functions/public-quote-selection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: accessToken, item_id: itemId, is_selected: selected })
+          }).catch(() => {});
+        } else {
+          apiCall('portal-quote-selection', {
+            method: 'POST',
+            body: JSON.stringify({ quote_id: quote.id, item_id: itemId, selected })
+          }).catch(() => {});
+        }
       }
     }
     
@@ -846,29 +903,50 @@
       try {
         // Get selected options
         const selectedOptions = lineItems
-          .filter(i => i.is_optional && i.is_selected)
+          .filter(i => i.is_optional === true && i.is_selected === true)
           .map(i => i.id);
         
-        // Create checkout session with custom amount
-        const response = await apiCall('create-checkout', {
-          method: 'POST',
-          body: JSON.stringify({
-            quote_id: quoteId,
-            selected_options: selectedOptions,
-            payment_amount: paymentAmount
-          })
-        });
+        let response;
+        
+        if (isPublicAccess) {
+          // Use public checkout API
+          const res = await fetch('/.netlify/functions/public-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: accessToken,
+              selected_options: selectedOptions,
+              payment_amount: paymentAmount
+            })
+          });
+          
+          if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to create checkout');
+          }
+          response = await res.json();
+        } else {
+          // Use authenticated API
+          response = await apiCall('create-checkout', {
+            method: 'POST',
+            body: JSON.stringify({
+              quote_id: quote.id,
+              selected_options: selectedOptions,
+              payment_amount: paymentAmount
+            })
+          });
+        }
         
         // Redirect to Stripe
-        if (response.checkout_url) {
-          window.location.href = response.checkout_url;
+        if (response.url) {
+          window.location.href = response.url;
         } else {
           throw new Error('Failed to create checkout session');
         }
         
       } catch (err) {
         console.error('Checkout error:', err);
-        showToast('Failed to process. Please try again.', 'error');
+        showToast(err.message || 'Failed to process. Please try again.', 'error');
         btn.disabled = false;
         btn.textContent = 'Accept Quote & Pay';
       }
